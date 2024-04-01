@@ -1,21 +1,52 @@
 #!/bin/perl
 #
-# You'll need to do "cpan Crypt::Rijndael"
+# You'll need to do "cpan Crypt::Rijndael" and "cpan Switch" in order to run this.
 #
-# I've commented out all the lines for using maketad to create a new TAD. Also prevented deleting the extracted app/tik/tmd.
+# I've commented out all the lines for using maketad to create a new TAD. 
 # Just doing a bunch of testing stuff.
 
 use strict;
 use Crypt::Rijndael;
 use Digest::SHA1 qw(sha1);
 
-my $tad = $ARGV[0] or die "split_tad <tad>\n";
-my $outdir = "out";
-
+my $tad = $ARGV[0] or die "split_tad <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n";
+my $key = $ARGV[1] or die "split_tad <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n";
+my $outdir = substr($tad, 0, -4);
 my $buf;
-my $common_key    = pack("H*", "A1604A6A7123B529AE8BEC32C816FCAA");		# dev
-# my $common_key    = pack("H*", "A2FDDDF2E423574AE7ED8657B5AB19D3");		# debugger/update
-# my $common_key    = pack("H*", "AF1BF516A807D21AEA45984F04742861");		# retail		
+
+my $common_key;
+
+use Switch;
+
+switch($key) {
+    case "dsi_dev" {
+        $common_key = pack("H*", "a1604a6a7123b529ae8bec32c816fcaa");
+    }
+    case "dsi_prod" {
+        $common_key = pack("H*", "30bfc76e7c19afbb23163330ced7c28d");
+        next;
+    }
+    case "dsi_debugger" {
+        $common_key = pack("H*", "A2FDDDF2E423574AE7ED8657B5AB19D3");
+        next;
+    }
+    case "wii_dev" {
+        $common_key = pack("H*", "a1604a6a7123b529ae8bec32c816fcaa");
+        next;
+    }
+    case "wii_prod" {
+        $common_key = pack("H*", "ebe42a225e8593e448d9c5457381aaf7");
+        next;
+    }
+    case "wii_vwii" {
+        $common_key = pack("H*", "30bfc76e7c19afbb23163330ced7c28d");
+        next;
+    }
+    case "wii_korea" {
+        $common_key = pack("H*", "63b82bb4f4614e2e13f2fefbba4c9b7e");
+        ;
+    }
+}
 
 open(F, $tad) or die "cant open $tad\n";
 binmode(F);
@@ -60,17 +91,19 @@ my $ticket  = substr($buf, $ticketOffset, 	$ticketSize);
 my $tmd     = substr($buf, $tmdOffset, 		$tmdSize);
 my $content = substr($buf, $contentOffset, 	$contentSize);
 
-&save_file("$outdir/cert.bin", 		substr($buf, $certOffset, 		$certSize));
-&save_file("$outdir/crl.bin", 		substr($buf, $crlOffset, 		$crlSize));
-&save_file("$outdir/ticket.bin", 	$ticket);
-&save_file("$outdir/tmd.bin", 		$tmd);
+&save_file("$outdir/$outdir.cert", 		substr($buf, $certOffset, 		$certSize));
+&save_file("$outdir/$outdir.crl", 		substr($buf, $crlOffset, 		$crlSize));
+&save_file("$outdir/$outdir.tik", 	$ticket);
+&save_file("$outdir/$outdir.tmd", 		$tmd);
 #&save_file("$outdir/content.bin", 	substr($buf, $contentOffset, 	$contentSize));
-&save_file("$outdir/meta.bin",		substr($buf, $metaOffset, 		$metaSize));
+&save_file("$outdir/$outdir.meta",		substr($buf, $metaOffset, 		$metaSize));
 
-
+print("Common key:             ");
+print unpack("H*", $common_key), "\n";
 my $title_key = &read_title_key($ticket);
 my $rci = &read_content_info($tmd);
 
+print("Decypted title key:     ");
 print unpack("H*", $title_key), "\n";
 
 my $offset = 0;
@@ -82,11 +115,16 @@ foreach my $i ( @$rci )
 	my $dec_content_x = &dec_cbc($title_key, $content_x_iv, $enc_content_x);
 	my $dec_content = substr($dec_content_x, 0, $i->[3]);
 	my $hash = &sha1($dec_content);
-
-	print unpack("H*", $hash), "  ";
+	print("Content IV:             ");
+	print unpack("H*", $content_x_iv), "\n";
+	print("Content hash:           ");
+	print unpack("H*", $hash), "\n";
+	print("Expected hash:          ");
+	print unpack("H*", $i->[4]), "\n";
 	print((($hash eq $i->[4]) ? "OK": "hash mismatch"), "\n");
-	&save_file("$outdir/content_$i->[1].encrypted.bin", $enc_content_x);
-	&save_file("$outdir/content_$i->[1].bin", $dec_content);
+	#&save_file("$outdir/content_$i->[1].encrypted.bin", $enc_content_x);
+	&save_file("$outdir/$outdir-$i->[1].app", $dec_content, $enc_content_x);
+
 
 	$offset += &round_up($size, 64);
 }
@@ -189,7 +227,10 @@ sub read_title_key
 
 	my $enc_title_key = substr($ticket, 0x1BF, 16);
 	my $title_key_iv = substr($ticket, 0x1DC, 8) . pack("x8");
-
+	print("Encypted title key:     ");
+	print unpack("H*", $enc_title_key), "\n";
+	print("Encypted title key IV:  ");
+	print unpack("H*", $title_key_iv), "\n";
 	return &dec_cbc($common_key, $title_key_iv, $enc_title_key);
 }
 
