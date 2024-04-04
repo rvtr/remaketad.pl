@@ -23,11 +23,11 @@ switch($key) {
         $common_key = pack("H*", "a1604a6a7123b529ae8bec32c816fcaa");
     }
     case "dsi_prod" {
-        $common_key = pack("H*", "30bfc76e7c19afbb23163330ced7c28d");
+        $common_key = pack("H*", "af1bf516a807d21aea45984f04742861");
         next;
     }
     case "dsi_debugger" {
-        $common_key = pack("H*", "A2FDDDF2E423574AE7ED8657B5AB19D3");
+        $common_key = pack("H*", "a2fdddf2e423574ae7ed8657b5ab19d3");
         next;
     }
     case "wii_dev" {
@@ -47,6 +47,7 @@ switch($key) {
         ;
     }
 }
+
 
 open(F, $tad) or die "cant open $tad\n";
 binmode(F);
