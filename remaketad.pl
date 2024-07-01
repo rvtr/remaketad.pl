@@ -9,8 +9,8 @@ use strict;
 use Crypt::Rijndael;
 use Digest::SHA1 qw(sha1);
 
-my $tad = $ARGV[0] or die "split_tad <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n";
-my $key = $ARGV[1] or die "split_tad <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n";
+my $tad = $ARGV[0] or die "remaketad.pl <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii:\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n\nOther:\n  other_netcard\n";
+my $key = $ARGV[1] or die "remaketad.pl <tad> <key>\n\nKey types:\nDSi:\n  dsi_dev\n  dsi_prod\n  dsi_debugger\n\nWii:\n  wii_dev\n  wii_prod\n  wii_vwii\n  wii_korea\n\nOther:\n  other_netcard\n";
 my $outdir = substr($tad, 0, -4);
 my $buf;
 
@@ -46,8 +46,11 @@ switch($key) {
         $common_key = pack("H*", "63b82bb4f4614e2e13f2fefbba4c9b7e");
         ;
     }
+    case "other_netcard" {
+        $common_key = pack("H*", "67458b6bc6237b3269983c6473483366");
+        ;
+    }
 }
-
 
 open(F, $tad) or die "cant open $tad\n";
 binmode(F);
